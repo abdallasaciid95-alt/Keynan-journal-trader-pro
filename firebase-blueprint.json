@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "TradingAccount": {
+      "title": "TradingAccount",
+      "description": "A user forex trading account for XAUUSD",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Google user ID" },
+        "name": { "type": "string", "description": "Account name" },
+        "type": { "type": "string", "enum": ["personal", "challenge_phase_1", "challenge_phase_2", "funded"], "description": "Account type" },
+        "startingBalance": { "type": "number", "description": "Initial balance in USD" },
+        "profitTarget": { "type": "number", "description": "Optional profit target in USD" },
+        "maxDailyLossLimit": { "type": "number", "description": "Optional maximum daily loss limit in USD" },
+        "maxOverallDrawdownLimit": { "type": "number", "description": "Optional maximum overall drawdown in USD" },
+        "startDate": { "type": "string", "description": "Start date (YYYY-MM-DD)" },
+        "status": { "type": "string", "enum": ["active", "passed", "failed", "archived"], "description": "Account status" },
+        "notes": { "type": "string", "description": "Account notes" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp via serverTimestamp" }
+      },
+      "required": ["userId", "name", "type", "startingBalance", "status", "createdAt"]
+    },
+    "Trade": {
+      "title": "Trade",
+      "description": "Manual XAUUSD trade entry record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Google user ID" },
+        "accountId": { "type": "string", "description": "ID of the trading account" },
+        "instrument": { "type": "string", "description": "Instrument symbol, always XAUUSD" },
+        "date": { "type": "string", "description": "Date string YYYY-MM-DD" },
+        "entryTime": { "type": "string", "description": "Entry time HH:mm" },
+        "direction": { "type": "string", "enum": ["BUY", "SELL"], "description": "Direction BUY or SELL" },
+        "entryPrice": { "type": "number", "description": "Gold entry price" },
+        "exitPrice": { "type": "number", "description": "Gold exit price" },
+        "lotSize": { "type": "number", "description": "Lot size" },
+        "stopLossPrice": { "type": "number", "description": "Stop loss price" },
+        "takeProfitPrice": { "type": "number", "description": "Take profit price" },
+        "result": { "type": "string", "enum": ["win", "loss", "breakeven", "open"], "description": "Trade outcome" },
+        "pnl": { "type": "number", "description": "Realized profit or loss in USD (0 for open)" },
+        "session": { "type": "string", "enum": ["asian", "london", "new_york", "other"], "description": "Market session" },
+        "strategy": { "type": "string", "description": "Strategy name" },
+        "entryReason": { "type": "string", "description": "Reason for trade entry" },
+        "marketConditions": { "type": "string", "description": "Market structure and conditions" },
+        "emotions": { "type": "string", "description": "Emotional state before trade" },
+        "mistakes": { "type": "string", "description": "Trading mistakes" },
+        "lessons": { "type": "string", "description": "Lessons learned" },
+        "notes": { "type": "string", "description": "Additional notes" },
+        "screenshotUrl": { "type": "string", "description": "Attached screenshot data or URL" },
+        "followedPlan": { "type": "string", "enum": ["yes", "no", "na"], "description": "Followed trading plan" },
+        "respectedStopLoss": { "type": "string", "enum": ["yes", "no", "na"], "description": "Respected stop loss" },
+        "enteredByStrategy": { "type": "string", "enum": ["yes", "no", "na"], "description": "Entered according to strategy" },
+        "emotionalTrading": { "type": "string", "enum": ["yes", "no", "na"], "description": "Traded emotionally" },
+        "overtraded": { "type": "string", "enum": ["yes", "no", "na"], "description": "Overtraded flag" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp via serverTimestamp" }
+      },
+      "required": ["userId", "accountId", "instrument", "date", "entryTime", "direction", "entryPrice", "exitPrice", "lotSize", "result", "pnl", "session", "strategy", "createdAt"]
+    },
+    "AccountTransaction": {
+      "title": "AccountTransaction",
+      "description": "Deposit or withdrawal transaction for an account",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Google user ID" },
+        "accountId": { "type": "string", "description": "Target account ID" },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal"], "description": "Transaction type" },
+        "amount": { "type": "number", "description": "Amount in USD" },
+        "date": { "type": "string", "description": "Date YYYY-MM-DD" },
+        "note": { "type": "string", "description": "Transaction note" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" }
+      },
+      "required": ["userId", "accountId", "type", "amount", "date", "createdAt"]
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User preferences and goals",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Google user ID" },
+        "defaultAccountId": { "type": "string", "description": "Default selected account ID" },
+        "defaultSession": { "type": "string", "description": "Default session" },
+        "dailyProfitGoal": { "type": "number", "description": "Personal daily profit target USD" },
+        "maxTradesPerDay": { "type": "number", "description": "Max trades per day threshold" },
+        "appLockEnabled": { "type": "boolean", "description": "Whether app PIN lock is active" },
+        "appLockPin": { "type": "string", "description": "Hashed or raw PIN for app lock" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp" }
+      },
+      "required": ["userId", "defaultSession"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/TradingAccount" },
+      "description": "Trading accounts owned by user"
+    },
+    "/users/{userId}/trades/{tradeId}": {
+      "schema": { "$ref": "#/entities/Trade" },
+      "description": "XAUUSD trades recorded by user"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/AccountTransaction" },
+      "description": "Account deposits and withdrawals"
+    },
+    "/users/{userId}/settings/preferences": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "User specific app settings"
+    }
+  }
+}

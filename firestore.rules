@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidAccount(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.type in ['personal', 'challenge_phase_1', 'challenge_phase_2', 'funded'] &&
+             data.startingBalance is number && data.startingBalance >= 0 &&
+             (!('profitTarget' in data) || data.profitTarget == null || data.profitTarget is number) &&
+             (!('maxDailyLossLimit' in data) || data.maxDailyLossLimit == null || data.maxDailyLossLimit is number) &&
+             (!('maxOverallDrawdownLimit' in data) || data.maxOverallDrawdownLimit == null || data.maxOverallDrawdownLimit is number) &&
+             (!('startDate' in data) || (data.startDate is string && data.startDate.size() <= 30)) &&
+             data.status in ['active', 'passed', 'failed', 'archived'] &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000));
+    }
+
+    function isValidTrade(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.accountId is string && data.accountId.size() <= 128 &&
+             data.instrument == 'XAUUSD' &&
+             data.date is string && data.date.size() <= 30 &&
+             data.entryTime is string && data.entryTime.size() <= 30 &&
+             data.direction in ['BUY', 'SELL'] &&
+             data.entryPrice is number && data.entryPrice > 0 &&
+             data.exitPrice is number && data.exitPrice >= 0 &&
+             data.lotSize is number && data.lotSize > 0 &&
+             (!('stopLossPrice' in data) || data.stopLossPrice == null || data.stopLossPrice is number) &&
+             (!('takeProfitPrice' in data) || data.takeProfitPrice == null || data.takeProfitPrice is number) &&
+             data.result in ['win', 'loss', 'breakeven', 'open'] &&
+             data.pnl is number &&
+             data.session in ['asian', 'london', 'new_york', 'other'] &&
+             data.strategy is string && data.strategy.size() <= 100 &&
+             (!('entryReason' in data) || (data.entryReason is string && data.entryReason.size() <= 2000)) &&
+             (!('marketConditions' in data) || (data.marketConditions is string && data.marketConditions.size() <= 2000)) &&
+             (!('emotions' in data) || (data.emotions is string && data.emotions.size() <= 2000)) &&
+             (!('mistakes' in data) || (data.mistakes is string && data.mistakes.size() <= 2000)) &&
+             (!('lessons' in data) || (data.lessons is string && data.lessons.size() <= 2000)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 5000)) &&
+             (!('screenshotUrl' in data) || (data.screenshotUrl is string && data.screenshotUrl.size() <= 1000000)) &&
+             (!('followedPlan' in data) || data.followedPlan in ['yes', 'no', 'na']) &&
+             (!('respectedStopLoss' in data) || data.respectedStopLoss in ['yes', 'no', 'na']) &&
+             (!('enteredByStrategy' in data) || data.enteredByStrategy in ['yes', 'no', 'na']) &&
+             (!('emotionalTrading' in data) || data.emotionalTrading in ['yes', 'no', 'na']) &&
+             (!('overtraded' in data) || data.overtraded in ['yes', 'no', 'na']) &&
+             (!('whatLearned' in data) || (data.whatLearned is string && data.whatLearned.size() <= 2000));
+    }
+
+    function isValidTransaction(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.accountId is string && data.accountId.size() <= 128 &&
+             data.type in ['deposit', 'withdrawal'] &&
+             data.amount is number && data.amount > 0 &&
+             data.date is string && data.date.size() <= 30 &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 500));
+    }
+
+    function isValidSettings(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             (!('defaultAccountId' in data) || (data.defaultAccountId is string && data.defaultAccountId.size() <= 128)) &&
+             data.defaultSession is string && data.defaultSession.size() <= 50 &&
+             (!('dailyProfitGoal' in data) || data.dailyProfitGoal == null || data.dailyProfitGoal is number) &&
+             (!('maxTradesPerDay' in data) || data.maxTradesPerDay == null || data.maxTradesPerDay is number) &&
+             (!('appLockEnabled' in data) || data.appLockEnabled is bool) &&
+             (!('appLockPin' in data) || (data.appLockPin is string && data.appLockPin.size() <= 200));
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      match /accounts/{accountId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidAccount(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidAccount(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /trades/{tradeId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidTrade(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTrade(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /transactions/{transactionId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidTransaction(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTransaction(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /settings/{settingId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create, update: if isSignedIn() &&
+                                 request.auth.uid == userId &&
+                                 incoming().userId == request.auth.uid &&
+                                 isValidSettings(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+  }
+}
